@@ -1,5 +1,6 @@
+# server.py has no AI logic, but is good for testing purposes
+
 import json
-import generate_report
 
 from flask import Flask, request
 bruh = "hello, world. i'm python code"
@@ -36,12 +37,12 @@ def response():
     return response
 
 # Generate report
-@app.route("/report")
+@app.route("/report", methods=['POST'])
 def report():
     global question_memory
-    report = generate_report(question_memory)
+    # report = generate_report(question_memory)
     print("report is reporting!!!!")
-    return report
+    return "blank"
 
 if __name__ == "__main__":
     # switch to port 8000 for mac, because 5000 is taken by control centre
