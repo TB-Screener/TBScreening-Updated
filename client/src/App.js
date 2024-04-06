@@ -3,17 +3,11 @@ import {
   Avatar,
   CardHeader,
   CardFooter,
-  Textarea,
   ChakraProvider,
   Box,
   Text,
-  Link,
   VStack,
-  Code,
-  Grid,
   Button,
-  ButtonGroup,
-  theme,
   Center,
   Heading,
   HStack,
@@ -26,7 +20,7 @@ import {
 import { ChatIcon, DownloadIcon, CheckCircleIcon } from '@chakra-ui/icons';
 import { useState, useEffect } from 'react';
 import ChatBox from './components/ChatBox';
-import TypeIt from "typeit-react";
+import TypeIt from 'typeit-react';
 
 const SpeechRecognition =
   window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -34,26 +28,23 @@ const mic = new SpeechRecognition();
 
 mic.continuous = true;
 mic.interimResults = true;
-mic.lang = 'en-US';
+mic.lang = 'en-US'; // can change language for different regions
 
 function App() {
-  // store data from backend in data
-  const [data, setData] = useState({ response: "" });
+  // store responses from gemini in variable named data
+  const [data, setData] = useState({ response: '' });
 
-  // audio stuff
+  // audio stuff for recording speech to text transcripts
   const [isListening, setIsListening] = useState(false);
-  const [note, setNote] = useState(null);
-  const [savedNotes, setSavedNotes] = useState([]);
+  const [transcript, setTranscript] = useState(null);
+  const [savedTranscripts, setSavedTranscripts] = useState([]);
 
-  useEffect(() => {
-    handleListen();
-  }, [isListening]);
-
+  // handler for voice recording
   const handleListen = () => {
     if (isListening) {
       mic.start();
       mic.onend = () => {
-        console.log('continue..');
+        console.log('continue listening');
         mic.start();
       };
     } else {
@@ -63,7 +54,7 @@ function App() {
       };
     }
     mic.onstart = () => {
-      console.log('Mics on');
+      console.log('Mic on');
     };
 
     mic.onresult = event => {
@@ -72,57 +63,73 @@ function App() {
         .map(result => result.transcript)
         .join('');
       console.log(transcript);
-      setNote(transcript);
+      setTranscript(transcript);
       mic.onerror = event => {
         console.log(event.error);
       };
     };
   };
 
-  const handleSaveNote = () => {
-    
-    console.log("obama: ")
-    console.log("note: ", note)
+  // handler for saving voice transcript
+  const handleSaveTranscript = () => {
+    console.log('transcript: ', transcript);
 
-    setSavedNotes(savedNotes => [...savedNotes, note]); // Using the functional form of setState
-    
-    console.log(JSON.stringify([...savedNotes, note]))
+    setSavedTranscripts(savedTranscripts => [...savedTranscripts, transcript]); // Using the functional form of setState
+
+    console.log(JSON.stringify([...savedTranscripts, transcript]));
 
     // fetch for sending data
     // Making an AJAX request to Flask backend
     fetch('/send-data', {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/json'
+        'Content-Type': 'application/json',
       },
-      body: JSON.stringify({ data: [...savedNotes, note] })
+      // send updated so not one behind
+      body: JSON.stringify({ data: [...savedTranscripts, transcript] }),
     })
-    .then(res => res.json())
-    .then(responseData => {
-      setData({ response: responseData.response }); // Update state with the response
-      console.log("Response received:", responseData);
-    })
-    .catch(error => {
-      console.error('Error sending data:', error);
-    });
-    setNote('');
-};
-
-  // fetch members from backend to frontend, should re-render
-  useEffect(() => {
-    fetch('/members')
       .then(res => res.json())
-      .then(data => {
-        // call setData
-        setData(data);
-        console.log("shrek");
-        console.log(data);
+      .then(responseData => {
+        setData({ response: responseData.response }); // Update state with the response
+        console.log('Response received from Gemini:', responseData);
+      })
+      .catch(error => {
+        console.error('Error sending data:', error);
       });
-  }, [savedNotes]);
+    setTranscript('');
+  };
+
+  // handler for downloading PDF
+  const handleDownload = () => {
+    console.log('handle download called');
+
+    // call report generation in flask backend
+    fetch('/report', {
+      method: 'POST',
+    })
+      .then(response => {
+        if (response.ok) {
+          return response.text(); // Assuming the response is text
+        }
+        throw new Error('Network response was not ok.');
+      })
+      .then(data => {
+        // Handle the generated report data here
+        console.log('name of pdf file generated and you can find: ', data);
+      })
+      .catch(error => {
+        console.error('There was a problem with your pdf download:', error);
+      });
+  };
+
+  // run handle listen when isListening
+  useEffect(() => {
+    handleListen();
+  }, [isListening]);
 
   // fetch GEMINI RESPONSE from backend to frontend, should re-render
   useEffect(() => {
-    console.log("inshallah")
+    console.log('re-render when data changes');
   }, [data]);
 
   return (
@@ -134,11 +141,11 @@ function App() {
       >
         <Image
           mt="20px"
-          borderRadius='full'
-          boxSize='100px'
-          src='https://i.imgur.com/iLMAeW1.png'
+          borderRadius="full"
+          boxSize="100px"
+          src="https://i.imgur.com/iLMAeW1.png"
         />
-        
+
         <Heading
           ml="20px"
           mt="20px"
@@ -161,20 +168,15 @@ function App() {
 
       <Center mt="100px" mb="100px" color="black">
         <HStack spacing="20px">
-          <Avatar
-            size="lg"
-            src="https://i.imgur.com/IO3XefC.png"
-          />
+          <Avatar size="lg" src="https://i.imgur.com/IO3XefC.png" />
           {data.response == '' ? (
-            <div><b>Hello!</b> Tell me about yourself and if you have any TB symptoms. </div>
+            <div>
+              <b>Hello!</b> Tell me about yourself and if you have any TB
+              symptoms.{' '}
+            </div>
           ) : (
-            <div>{ data.response } </div>
+            <div>{data.response} </div>
           )}
-          
-          {/* <TypeIt options={{ speed: 30, waitUntilVisible: true }} style={{ fontSize: "36px" }}>
-  {       data.response}
-</TypeIt> */}
-
         </HStack>
       </Center>
 
@@ -182,17 +184,13 @@ function App() {
         <Card align="center" width="700px" mb="10px">
           <CardHeader>
             {isListening ? (
-              <Heading size="lg">
-                Voice Input 🔴
-              </Heading>
+              <Heading size="lg">Voice Input 🔴</Heading>
             ) : (
-              <Heading size="lg">
-              Voice Input 🎙️
-              </Heading>
+              <Heading size="lg">Voice Input 🎙️</Heading>
             )}
           </CardHeader>
           <CardBody>
-            <Text color={"blue.600"}>{note}</Text>
+            <Text color={'blue.600'}>{transcript}</Text>
           </CardBody>
           <CardFooter>
             <VStack>
@@ -212,27 +210,27 @@ function App() {
                     )}
                   </Button>
 
-                  {isListening || note == null ? (
+                  {isListening || transcript == null ? (
                     <Text>Wait a couple seconds before speaking</Text>
                   ) : (
                     <HStack>
                       <Button
-                      rightIcon={<CheckCircleIcon />}
-                      colorScheme="green"
-                      size="lg"
-                      onClick={handleSaveNote}
-                    >
-                      Submit Answer
-                    </Button>
+                        rightIcon={<CheckCircleIcon />}
+                        colorScheme="green"
+                        size="lg"
+                        onClick={handleSaveTranscript}
+                      >
+                        Submit Answer
+                      </Button>
 
-                    <Button
-                      rightIcon={<DownloadIcon />}
-                      colorScheme="blue"
-                      size="lg"
-                      onClick={handleSaveNote} // to do later
-                    >
-                      Generate PDF
-                    </Button>
+                      <Button
+                        rightIcon={<DownloadIcon />}
+                        colorScheme="blue"
+                        size="lg"
+                        onClick={handleDownload} // creates PDF in file system
+                      >
+                        Generate PDF
+                      </Button>
                     </HStack>
                   )}
                 </HStack>
@@ -247,34 +245,16 @@ function App() {
           <HStack width="50%" maxWidth="6xl">
             <Stack>
               <Text fontSize="3xl">
-                  <b>Your Responses</b>
+                <b>Your Responses</b>
               </Text>
               <Divider></Divider>
-              <Box
-                  overflowY="auto"
-                  maxHeight="150px"
-                  minWidth="6xl"
-              >
-                  <ChatBox data={savedNotes} />
+              <Box overflowY="auto" maxHeight="150px" minWidth="6xl">
+                <ChatBox data={savedTranscripts} />
               </Box>
             </Stack>
           </HStack>
         </Stack>
       </Center>
-
-      {/* <div>
-        {typeof data === 'undefined' ? (
-          <p>Loading...</p>
-        ) : (
-          data.map((member, i) => <p key={i}>{JSON.stringify(member)}</p>)
-        )}
-      </div> */}
-      {/* <div className="box">
-        <h2>Notes</h2>
-        {savedNotes.map(n => (
-          <p key={n}>{n}</p>
-        ))}
-      </div> */}
     </ChakraProvider>
   );
 }
